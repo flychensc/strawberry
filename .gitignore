@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# 配置文件
+config.ini
+
+# 数据文件
+*.csv

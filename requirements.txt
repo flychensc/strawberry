@@ -1,0 +1,7 @@
+mkl-service==2.3.0
+mplfinance==0.12.8b6
+numpy==1.20.1
+pandas==1.2.4
+rqalpha==4.7.2
+TA-Lib==0.4.24
+tensorflow==2.7.0
