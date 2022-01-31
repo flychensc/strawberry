@@ -4,7 +4,7 @@ from rqalpha import run_file
 
 import datetime as dt
 
-start_year = 2021
+start_year = 2005
 end_year = 2021
 
 for year in range(start_year, end_year+1):
