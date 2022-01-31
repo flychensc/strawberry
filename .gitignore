@@ -133,3 +133,4 @@ config.ini
 
 # 数据文件
 *.csv
+*.jpg
