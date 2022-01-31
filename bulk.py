@@ -1,4 +1,5 @@
 from rqalpha.apis import *
+from sklearn.utils import shuffle
 
 import datetime as dt
 import mplfinance as mpf
@@ -32,8 +33,8 @@ def init(context):
     context.classifying['order_day'] = context.classifying['order_day'].dt.date
     context.classifying = context.classifying.drop(["holding_days", "profit"], axis=1)
 
-    # test = context.classifying.sample(frac=0.142857)
-    context.classifying.loc[context.classifying.sample(frac=0.142857).index, 'usage'] = 'test'
+    test = shuffle(context.classifying).sample(frac=0.142857)
+    context.classifying.loc[test.index, 'usage'] = 'test'
     context.classifying['usage'][context.classifying['usage'] != 'test'] = 'train'
 
     my_color = mpf.make_marketcolors(up='r', down='g', edge='inherit', wick='inherit', volume='inherit')
