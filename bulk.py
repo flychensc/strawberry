@@ -41,12 +41,14 @@ def init(context):
 
     context.class_map = {"loss": "0", "holding": "1", "profit": "2"}
 
-    os.mkdir("train")
-    for sub in context.class_map.values():
-        os.mkdir(os.path.join("train", sub))
-    os.mkdir("test")
-    for sub in context.class_map.values():
-        os.mkdir(os.path.join("test", sub))
+    if not os.path.exists('train'):
+        os.mkdir("train")
+        for sub in context.class_map.values():
+            os.mkdir(os.path.join("train", sub))
+    if not os.path.exists('test'):
+        os.mkdir("test")
+        for sub in context.class_map.values():
+            os.mkdir(os.path.join("test", sub))
 
 
 def after_trading(context):
