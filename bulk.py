@@ -33,7 +33,11 @@ def init(context):
     context.classifying['order_day'] = context.classifying['order_day'].dt.date
     context.classifying = context.classifying.drop(["holding_days", "profit"], axis=1)
 
-    test = shuffle(context.classifying).sample(frac=0.142857)
+    test = shuffle(context.classifying[context.classifying['classify'] == "loss"]).sample(frac=0.142857)
+    context.classifying.loc[test.index, 'usage'] = 'test'
+    test = shuffle(context.classifying[context.classifying['classify'] == "holding"]).sample(frac=0.142857)
+    context.classifying.loc[test.index, 'usage'] = 'test'
+    test = shuffle(context.classifying[context.classifying['classify'] == "profit"]).sample(frac=0.142857)
     context.classifying.loc[test.index, 'usage'] = 'test'
     context.classifying['usage'][context.classifying['usage'] != 'test'] = 'train'
 
