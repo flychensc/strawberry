@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import configparser
-import os
+import pathlib
 
 
 def gen_kline(context, data, fpath):
@@ -26,9 +26,10 @@ def init(context):
 
     context.PERIOD = config.getint('CANDLE', 'PERIOD')
     context.FREQUENCY = '1d'
-    context.BAR_COUNT = 52*5 + context.PERIOD
+    context.BAR_COUNT = (dt.datetime.strptime(config.get("PICK", "END_DAY"), "%Y-%m-%d") - dt.datetime.strptime(config.get("PICK", "START_DAY"), "%Y-%m-%d")).days
+    context.BAR_COUNT = int(context.BAR_COUNT/7*5)
 
-    context.classifying = pd.read_csv("sample.csv", parse_dates=["order_day"], date_parser=lambda x: dt.datetime.strptime(x, "%Y-%m-%d"))
+    context.classifying = pd.read_csv("classifying.csv", parse_dates=["order_day"], date_parser=lambda x: dt.datetime.strptime(x, "%Y-%m-%d"))
     # CONVERT dtype: datetime64[ns] to datetime.date
     context.classifying['order_day'] = context.classifying['order_day'].dt.date
     context.classifying = context.classifying.drop(["holding_days", "profit"], axis=1)
@@ -44,16 +45,14 @@ def init(context):
     my_color = mpf.make_marketcolors(up='r', down='g', edge='inherit', wick='inherit', volume='inherit')
     context.my_style = mpf.make_mpf_style(marketcolors=my_color)
 
-    context.class_map = {"loss": "0", "holding": "1", "profit": "2"}
+    sub_dirs = ["loss", "holding", "profit"]
 
-    if not os.path.exists('train'):
-        os.mkdir("train")
-        for sub in context.class_map.values():
-            os.mkdir(os.path.join("train", sub))
-    if not os.path.exists('test'):
-        os.mkdir("test")
-        for sub in context.class_map.values():
-            os.mkdir(os.path.join("test", sub))
+    if not pathlib.Path('train').exists():
+        for sub in sub_dirs:
+            pathlib.Path().joinpath("train", sub).mkdir(parents=True)
+    if not pathlib.Path('test').exists():
+        for sub in sub_dirs:
+            pathlib.Path().joinpath("test", sub).mkdir(parents=True)
 
 
 def after_trading(context):
@@ -65,8 +64,8 @@ def after_trading(context):
         if not historys.size: continue
 
         order_data = context.classifying[(context.classifying['order_book_id'] == order_book_id) &
-                                     (context.classifying['order_day'] < day) &
-                                     (context.classifying['classify'] != "")]
+                                         (context.classifying['order_day'] < day) &
+                                         (context.classifying['classify'] != "")]
 
         for order_day in order_data['order_day'].sort_values(ascending=False):
             order_day64 = np.int64(order_day.strftime("%Y%m%d%H%M%S"))
@@ -77,12 +76,14 @@ def after_trading(context):
                 break
 
             index = context.classifying[(context.classifying['order_book_id'] == order_book_id) &
-                                      (context.classifying['order_day'] == order_day)].index[0]
-            fpath = os.path.join(context.classifying['usage'][index],
-                                 context.class_map[context.classifying['classify'][index]],
-                                 '_'.join([order_day.strftime("%Y%m%d"), order_book_id[:6], '.jpg']))
+                                        (context.classifying['order_day'] == order_day)].index[0]
+            fpath = pathlib.Path().joinpath(context.classifying['usage'][index],
+                                            context.classifying['classify'][index],
+                                            '.'.join(['_'.join([order_day.strftime("%Y%m%d"),
+                                                                order_book_id[:6]]),
+                                                      'jpg']))
 
-            gen_kline(context, historys[-1-context.PERIOD:], fpath)
+            gen_kline(context, historys[-1-context.PERIOD:], str(fpath))
 
     if context.run_info.end_date == day:
         print(dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "END")
