@@ -33,6 +33,7 @@ def init(context):
     # CONVERT dtype: datetime64[ns] to datetime.date
     context.classifying['order_day'] = context.classifying['order_day'].dt.date
     context.classifying = context.classifying.drop(["holding_days", "profit"], axis=1)
+    context.classifying = context.classifying.drop(context.classifying[context.classifying["classify"].isna()].index)
 
     test = shuffle(context.classifying[context.classifying['classify'] == "loss"]).sample(frac=0.142857)
     context.classifying.loc[test.index, 'usage'] = 'test'
