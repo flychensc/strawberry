@@ -4,7 +4,6 @@ from tensorflow import keras
 
 # Helper libraries
 import numpy as np
-import matplotlib.pyplot as plt
 import random
 import pathlib
 
@@ -52,36 +51,69 @@ def load_datasheet(path):
   # 现在创建一个新的数据集，通过在路径数据集上映射 preprocess_image 来动态加载和格式化图片
   image_ds = path_ds.map(load_and_preprocess_image, num_parallel_calls=AUTOTUNE)
   # 使用同样的 from_tensor_slices 方法你可以创建一个标签数据集
-  label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(all_image_labels, tf.int64))
+  label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(all_image_labels, tf.int8))
   # 由于这些数据集顺序相同，可以将他们打包在一起得到一个(图片, 标签)对数据集：
-  # image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
-  return (np.array(list(image_ds.as_numpy_iterator()), dtype=np.uint8), np.array(list(label_ds.as_numpy_iterator()), dtype=np.uint8))
+  image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
+  return image_label_ds, image_count
 
 
 # 导入数据集
-(train_images, train_labels) = load_datasheet('./train')
-(test_images, test_labels) = load_datasheet('./test')
+image_label_ds, image_count = load_datasheet('./train')
+
+# 缓存
+image_label_ds = image_label_ds.cache(filename='./cache.tf-data')
+
+# 设置一个和数据集大小一致的 shuffle buffer size（随机缓冲区大小）以保证数据
+# 被充分打乱。
+ds = image_label_ds.shuffle(buffer_size=image_count)
+ds = ds.repeat()
+ds = ds.batch(BATCH_SIZE)
+# 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
+ds = ds.prefetch(buffer_size=AUTOTUNE)
 
 
 # 构建模型
-model = keras.Sequential([
-    keras.layers.Flatten(input_shape=(192, 192)),
-    keras.layers.Dense(128, activation='relu'),
-    # len(label_names)
-    keras.layers.Dense(3)
-])
+mobile_net = tf.keras.applications.MobileNetV2(input_shape=(192, 192, 3), include_top=False)
+# 设置 MobileNet 的权重为不可训练
+mobile_net.trainable=False
+
+# 在将输出传递给 MobilNet 模型之前，需要将其范围从 [0,1] 转化为 [-1,1]：
+def change_range(image,label):
+  return 2*image-1, label
+
+keras_ds = ds.map(change_range)
+
+# # 数据集可能需要几秒来启动，因为要填满其随机缓冲区。
+image_batch, label_batch = next(iter(keras_ds))
+
+feature_map_batch = mobile_net(image_batch)
+
+model = tf.keras.Sequential([
+  mobile_net,
+  tf.keras.layers.GlobalAveragePooling2D(),
+  # len(label_names)
+  tf.keras.layers.Dense(3, activation = 'softmax')])
+
+logit_batch = model(image_batch).numpy()
 
 # 编译模型
-model.compile(optimizer='adam',
-              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+model.compile(optimizer=tf.keras.optimizers.Adam(),
+              loss='sparse_categorical_crossentropy',
+              metrics=["accuracy"])
+
+
+steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
 
 # 训练模型
 # 向模型馈送数据
-model.fit(train_images, train_labels, epochs=10)
+model.fit(ds, epochs=10, steps_per_epoch=steps_per_epoch)
+
+
+# 导入数据集
+test_ds, test_count = load_datasheet('./test')
 
 # 评估准确率
-test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=2)
+test_loss, test_acc = model.evaluate(test_ds, verbose=2)
 print('\nTest accuracy:', test_acc)
 
 
@@ -93,16 +125,16 @@ model.save('saved_model/my_model')
 # 进行预测
 probability_model = tf.keras.Sequential([model,
                                          tf.keras.layers.Softmax()])
-predictions = probability_model.predict(test_images)
+predictions = probability_model.predict(test_ds)
 print(predictions[0])
 # 哪个标签的置信度值最大
 print(np.argmax(predictions[0]))
 # 检查测试标签
-print(test_labels[0])
+print(test_ds[0])
 
 
 # 使用训练好的模型
-img = test_images[1]
+img = test_ds[1]
 img = (np.expand_dims(img,0))
 predictions_single = probability_model.predict(img)
 
