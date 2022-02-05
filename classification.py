@@ -60,12 +60,9 @@ def load_datasheet(path):
 # 导入数据集
 image_label_ds, image_count = load_datasheet('./train')
 
-# 缓存
-image_label_ds = image_label_ds.cache(filename='./cache.tf-data')
-
 # 设置一个和数据集大小一致的 shuffle buffer size（随机缓冲区大小）以保证数据
 # 被充分打乱。
-ds = image_label_ds.shuffle(buffer_size=image_count)
+ds = image_label_ds.shuffle(buffer_size=5000)
 ds = ds.repeat()
 ds = ds.batch(BATCH_SIZE)
 # 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
@@ -109,17 +106,23 @@ steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
 model.fit(ds, epochs=10, steps_per_epoch=steps_per_epoch)
 
 
+# 保存模型
+pathlib.Path('saved_model').mkdir()
+model.save('saved_model/my_model')
+
+
 # 导入数据集
 test_ds, test_count = load_datasheet('./test')
+
+test_ds = test_ds.batch(BATCH_SIZE)
+# 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
+test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
 
 # 评估准确率
 test_loss, test_acc = model.evaluate(test_ds, verbose=2)
 print('\nTest accuracy:', test_acc)
 
 
-# 保存模型
-pathlib.Path('saved_model').mkdir()
-model.save('saved_model/my_model')
 
 
 # 进行预测
@@ -130,14 +133,16 @@ print(predictions[0])
 # 哪个标签的置信度值最大
 print(np.argmax(predictions[0]))
 # 检查测试标签
-print(test_ds[0])
+test_list = list(test_ds)
+print(test_list[0][1]])
 
 
 # 使用训练好的模型
-img = test_ds[1]
+img = test_list[1][0][0]
 img = (np.expand_dims(img,0))
 predictions_single = probability_model.predict(img)
 
 print(predictions_single)
 print(np.argmax(predictions_single[0]))
+print(test_list[1][1])
 
