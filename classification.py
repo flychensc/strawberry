@@ -1,8 +1,8 @@
 # TensorFlow and tf.keras
 import tensorflow as tf
-from tensorflow import keras
 
 # Helper libraries
+import matplotlib.pyplot as plt
 import numpy as np
 import random
 import pathlib
@@ -10,8 +10,13 @@ import pathlib
 
 # 配置
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-BATCH_SIZE = 128
-IMAGE_SIZE = 192
+#  32: 0.514
+#  64: 0.532 (1*OOM)
+# 128: 0.5228 (2*OOM)
+BATCH_SIZE = 32
+# (96, 128, 160, 192, 224)
+# 192: 0.513; 224: 0.531
+IMAGE_SIZE = 224
 
 
 # 加载和格式化图片
@@ -28,7 +33,7 @@ def load_and_preprocess_image(path):
   return preprocess_image(image)
 
 
-def load_datasheet(path):
+def load_datasheet(path, disp_one=False):
   # 检索图片
   data_root = pathlib.Path(path)
 
@@ -55,6 +60,17 @@ def load_datasheet(path):
   label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(all_image_labels, tf.int8))
   # 由于这些数据集顺序相同，可以将他们打包在一起得到一个(图片, 标签)对数据集：
   image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
+
+  if disp_one:
+    img_path = all_image_paths[0]
+    label = all_image_labels[0]
+
+    plt.imshow(load_and_preprocess_image(img_path))
+    plt.grid(False)
+    plt.xlabel(pathlib.Path(img_path).relative_to(data_root))
+    plt.title(label_names[label].title())
+    plt.show()
+
   return image_label_ds, image_count
 
 
