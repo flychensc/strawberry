@@ -10,13 +10,14 @@ import pathlib
 
 # 配置
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-BATCH_SIZE = 32
+BATCH_SIZE = 128
+IMAGE_SIZE = 192
 
 
 # 加载和格式化图片
 def preprocess_image(image):
   image = tf.image.decode_jpeg(image, channels=3)
-  image = tf.image.resize(image, [192, 192])
+  image = tf.image.resize(image, [IMAGE_SIZE, IMAGE_SIZE])
   image /= 255.0  # normalize to [0,1] range
 
   return image
@@ -70,7 +71,7 @@ ds = ds.prefetch(buffer_size=AUTOTUNE)
 
 
 # 构建模型
-mobile_net = tf.keras.applications.MobileNetV2(input_shape=(192, 192, 3), include_top=False)
+mobile_net = tf.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
 # 设置 MobileNet 的权重为不可训练
 mobile_net.trainable=False
 
@@ -134,7 +135,7 @@ print(predictions[0])
 print(np.argmax(predictions[0]))
 # 检查测试标签
 test_list = list(test_ds)
-print(test_list[0][1]])
+print(test_list[0][1])
 
 
 # 使用训练好的模型
