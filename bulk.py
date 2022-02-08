@@ -10,13 +10,18 @@ import configparser
 import pathlib
 
 
+IMAGE_SIZE = 224
+MYDPI = 100
+FIG_SIZE = (IMAGE_SIZE/MYDPI, IMAGE_SIZE/MYDPI)
+
+
 def gen_kline(context, data, fpath):
     data = pd.DataFrame(data)
     data['datetime'] = data['datetime'].map(lambda x: dt.datetime.strptime(str(x), "%Y%m%d%H%M%S").date())
     data.index = pd.to_datetime(data.datetime)
     data = data.drop(columns=['datetime'])
 
-    mpf.plot(data, type='candle', volume=True, style=context.my_style, axisoff=True, tight_layout=True, savefig={'fname': fpath})
+    mpf.plot(data, type='candle', volume=True, style=context.my_style, axisoff=True, tight_layout=True, scale_padding=0, figsize=FIG_SIZE, savefig={'fname': fpath, 'dpi': MYDPI})
 
 
 def init(context):
@@ -43,10 +48,8 @@ def init(context):
 
     for sub in sub_dirs:
         temp = context.classifying[context.classifying['classify'] == sub]
-        max_num = config.getint('BULK', 'NUMBER')
-        if temp.count() > max_num:
-            temp = shuffle(temp).sample(temp.count()-max_num)
-            context.classifying = context.classifying.drop(temp.index)
+        if temp.shape[0] > config.getint('BULK', 'NUMBER'):
+            context.classifying = context.classifying.drop(shuffle(temp).sample(temp.shape[0]-config.getint('BULK', 'NUMBER')).index)
 
     # 1/7用于测试
     for sub in sub_dirs:
