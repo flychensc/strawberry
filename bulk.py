@@ -32,21 +32,32 @@ def init(context):
     context.classifying = pd.read_csv("classifying.csv", parse_dates=["order_day"], date_parser=lambda x: dt.datetime.strptime(x, "%Y-%m-%d"))
     # CONVERT dtype: datetime64[ns] to datetime.date
     context.classifying['order_day'] = context.classifying['order_day'].dt.date
-    context.classifying = context.classifying.drop(["holding_days", "profit"], axis=1)
+
+    # 保留需要的列
+    context.classifying = context.classifying[['order_day', 'order_book_id', 'classify']]
+
     context.classifying = context.classifying.drop(context.classifying[context.classifying["classify"].isna()].index)
 
-    test = shuffle(context.classifying[context.classifying['classify'] == "loss"]).sample(frac=0.142857)
-    context.classifying.loc[test.index, 'usage'] = 'test'
-    test = shuffle(context.classifying[context.classifying['classify'] == "holding"]).sample(frac=0.142857)
-    context.classifying.loc[test.index, 'usage'] = 'test'
-    test = shuffle(context.classifying[context.classifying['classify'] == "profit"]).sample(frac=0.142857)
-    context.classifying.loc[test.index, 'usage'] = 'test'
-    context.classifying['usage'][context.classifying['usage'] != 'test'] = 'train'
+    # 获取子类别
+    sub_dirs = set(context.classifying["classify"])
+
+    for sub in sub_dirs:
+        temp = context.classifying[context.classifying['classify'] == sub]
+        max_num = config.getint('BULK', 'NUMBER')
+        if temp.count() > max_num:
+            temp = shuffle(temp).sample(temp.count()-max_num)
+            context.classifying = context.classifying.drop(temp.index)
+
+    # 1/7用于测试
+    for sub in sub_dirs:
+        test = shuffle(context.classifying[context.classifying['classify'] == sub]).sample(frac=0.142857)
+        context.classifying.loc[test.index, 'usage'] = 'test'
+    # 6/7用于训练
+    train = context.classifying[context.classifying['usage'] != 'test']
+    context.classifying.loc[train.index, 'usage'] = 'train'
 
     my_color = mpf.make_marketcolors(up='r', down='g', edge='inherit', wick='inherit', volume='inherit')
     context.my_style = mpf.make_mpf_style(marketcolors=my_color)
-
-    sub_dirs = ["loss", "holding", "profit"]
 
     if not pathlib.Path('train').exists():
         for sub in sub_dirs:
