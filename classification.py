@@ -22,7 +22,7 @@ IMAGE_SIZE = 224
 # 加载和格式化图片
 def preprocess_image(image):
   image = tf.image.decode_jpeg(image, channels=3)
-  #image = tf.image.resize(image, [IMAGE_SIZE, IMAGE_SIZE])
+  image = tf.image.resize(image, [IMAGE_SIZE, IMAGE_SIZE])
   image /= 255.0  # normalize to [0,1] range
 
   return image
