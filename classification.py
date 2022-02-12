@@ -123,11 +123,6 @@ steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
 model.fit(ds, epochs=10, steps_per_epoch=steps_per_epoch)
 
 
-# 保存模型
-pathlib.Path('saved_model').mkdir()
-model.save('saved_model/my_model')
-
-
 # 导入数据集
 test_ds, test_count = load_datasheet('./test')
 
@@ -140,6 +135,9 @@ test_loss, test_acc = model.evaluate(test_ds, verbose=2)
 print('\nTest accuracy:', test_acc)
 
 
+# 保存模型
+pathlib.Path('saved_model').mkdir()
+model.save('saved_model/my_model')
 
 
 # 进行预测

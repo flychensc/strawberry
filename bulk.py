@@ -33,9 +33,6 @@ def init(context):
     # CONVERT dtype: datetime64[ns] to datetime.date
     context.classifying['order_day'] = context.classifying['order_day'].dt.date
 
-    # 保留需要的列
-    context.classifying = context.classifying[['order_day', 'order_book_id', 'classify']]
-
     context.classifying = context.classifying.drop(context.classifying[context.classifying["classify"].isna()].index)
 
     # 获取子类别
@@ -43,8 +40,22 @@ def init(context):
 
     for sub in sub_dirs:
         temp = context.classifying[context.classifying['classify'] == sub]
-        if temp.shape[0] > config.getint('BULK', 'NUMBER'):
-            context.classifying = context.classifying.drop(shuffle(temp).sample(temp.shape[0]-config.getint('BULK', 'NUMBER')).index)
+        num = config.getint('BULK', 'NUMBER')
+        if temp.shape[0] > num:
+            if sub.startswith("profit"):
+                # 1,2,3...
+                context.classifying = context.classifying.drop(temp['k'].sort_values()[:-num].index)
+            elif sub.startswith("loss"):
+                # -1,-2,-3...
+                context.classifying = context.classifying.drop(temp['k'].sort_values(ascending=False)[:-num].index)
+            elif sub.startswith("hold"):
+                # 3,-3,2,-2,-1,1...
+                context.classifying = context.classifying.drop(temp['k'].sort_values(ascending=False, key=np.abs)[:-num].index)
+            else:
+                context.classifying = context.classifying.drop(shuffle(temp).sample(temp.shape[0]-num).index)
+
+    # 保留需要的列
+    context.classifying = context.classifying[['order_day', 'order_book_id', 'classify']]
 
     # 1/7用于测试
     for sub in sub_dirs:
