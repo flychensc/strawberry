@@ -10,18 +10,13 @@ import configparser
 import pathlib
 
 
-IMAGE_SIZE = 224
-MYDPI = 100
-FIG_SIZE = (IMAGE_SIZE/MYDPI, IMAGE_SIZE/MYDPI)
-
-
 def gen_kline(context, data, fpath):
     data = pd.DataFrame(data)
     data['datetime'] = data['datetime'].map(lambda x: dt.datetime.strptime(str(x), "%Y%m%d%H%M%S").date())
     data.index = pd.to_datetime(data.datetime)
     data = data.drop(columns=['datetime'])
 
-    mpf.plot(data, type='candle', volume=True, style=context.my_style, axisoff=True, tight_layout=True, scale_padding=0, figsize=FIG_SIZE, savefig={'fname': fpath, 'dpi': MYDPI})
+    mpf.plot(data, type='candle', volume=True, style=context.my_style, axisoff=True, tight_layout=True, scale_padding=0, savefig={'fname': fpath})
 
 
 def init(context):
