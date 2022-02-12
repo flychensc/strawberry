@@ -38,21 +38,23 @@ def init(context):
     # 获取子类别
     sub_dirs = set(context.classifying["classify"])
 
-    for sub in sub_dirs:
-        temp = context.classifying[context.classifying['classify'] == sub]
-        num = config.getint('BULK', 'NUMBER')
-        if temp.shape[0] > num:
-            if sub.startswith("profit"):
-                # 1,2,3...
-                context.classifying = context.classifying.drop(temp['k'].sort_values()[:-num].index)
-            elif sub.startswith("loss"):
-                # -1,-2,-3...
-                context.classifying = context.classifying.drop(temp['k'].sort_values(ascending=False)[:-num].index)
-            elif sub.startswith("hold"):
-                # 3,-3,2,-2,-1,1...
-                context.classifying = context.classifying.drop(temp['k'].sort_values(ascending=False, key=np.abs)[:-num].index)
-            else:
-                context.classifying = context.classifying.drop(shuffle(temp).sample(temp.shape[0]-num).index)
+    # 提高准确率
+    if 'k' in context.classifying.columns:
+        for sub in sub_dirs:
+            temp = context.classifying[context.classifying['classify'] == sub]
+            max_num = config.getint('BULK', 'NUMBER')
+            if temp.shape[0] > max_num:
+                if temp['k'].min() > 0:
+                    # 1,2,3...
+                    context.classifying = context.classifying.drop(temp['k'].sort_values()[:-max_num].index)
+                elif temp['k'].max() < 0:
+                    # -1,-2,-3...
+                    context.classifying = context.classifying.drop(temp['k'].sort_values(ascending=False)[:-max_num].index)
+                elif temp['k'].min() < 0 and temp['k'].max() > 0:
+                    # 3,-3,2,-2,-1,1...
+                    context.classifying = context.classifying.drop(temp['k'].sort_values(ascending=False, key=np.abs)[:-max_num].index)
+                else:
+                    context.classifying = context.classifying.drop(shuffle(temp).sample(temp.shape[0]-max_num).index)
 
     # 保留需要的列
     context.classifying = context.classifying[['order_day', 'order_book_id', 'classify']]
