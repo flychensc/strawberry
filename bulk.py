@@ -10,13 +10,13 @@ import configparser
 import pathlib
 
 
-def gen_kline(context, data, fpath):
+def gen_kline(context, data, fpath, mav):
     data = pd.DataFrame(data)
     data['datetime'] = data['datetime'].map(lambda x: dt.datetime.strptime(str(x), "%Y%m%d%H%M%S").date())
     data.index = pd.to_datetime(data.datetime)
     data = data.drop(columns=['datetime'])
 
-    mpf.plot(data, type='candle', volume=True, style=context.my_style, axisoff=True, tight_layout=True, scale_padding=0, savefig={'fname': fpath})
+    mpf.plot(data, type='candle', mav=mav, volume=True, style=context.my_style, axisoff=True, tight_layout=True, scale_padding=0, savefig={'fname': fpath})
 
 
 def init(context):
@@ -28,6 +28,8 @@ def init(context):
     context.FREQUENCY = '1d'
     context.BAR_COUNT = (dt.datetime.strptime(config.get("PICK", "END_DAY"), "%Y-%m-%d") - dt.datetime.strptime(config.get("PICK", "START_DAY"), "%Y-%m-%d")).days
     context.BAR_COUNT = int(context.BAR_COUNT/7*5)
+
+    context.mav = (config.getint('MA', 'MA1'), config.getint('MA', 'MA2'), config.getint('MA', 'MA3'))
 
     context.classifying = pd.read_csv("classifying.csv", parse_dates=["order_day"], date_parser=lambda x: dt.datetime.strptime(x, "%Y-%m-%d"))
     # CONVERT dtype: datetime64[ns] to datetime.date
@@ -106,7 +108,7 @@ def after_trading(context):
                                                                 order_book_id[:6]]),
                                                       'jpg']))
 
-            gen_kline(context, historys[-1-context.PERIOD:], str(fpath))
+            gen_kline(context, historys[-1-context.PERIOD:], str(fpath), context.mav)
 
     if context.run_info.end_date == day:
         print(dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "END")
