@@ -239,7 +239,7 @@ def training2():
   # 使用从搜索中获得的超参数找到训练模型的最佳周期数。
   # Build the model with the optimal hyperparameters and train it on the data for 50 epochs
   model = tuner.hypermodel.build(best_hps)
-  history = model.fit(ds, epochs=50, validation_split=0.2)
+  history = model.fit(ds, epochs=50, validation_data=test_ds)
 
   val_acc_per_epoch = history.history['val_accuracy']
   best_epoch = val_acc_per_epoch.index(max(val_acc_per_epoch)) + 1
@@ -249,7 +249,7 @@ def training2():
   hypermodel = tuner.hypermodel.build(best_hps)
 
   # Retrain the model
-  hypermodel.fit(ds, epochs=best_epoch, validation_split=0.2)
+  hypermodel.fit(ds, epochs=best_epoch, validation_data=test_ds)
 
 
   # 评估准确率
