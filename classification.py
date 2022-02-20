@@ -1,5 +1,6 @@
 # TensorFlow and tf.keras
 import tensorflow as tf
+import keras_tuner as kt
 
 # Helper libraries
 import matplotlib.pyplot as plt
@@ -150,6 +151,117 @@ def training():
   model.save('saved_model/my_model')
 
 
+# 定义模型
+def model_builder(hp):
+  model = tf.keras.Sequential()
+  model.add(tf.keras.layers.Flatten(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3)))
+
+  # Tune the number of units in the first Dense layer
+  # Choose an optimal value between 32-512
+  hp_units = hp.Int('units', min_value=32, max_value=512, step=32)
+  model.add(tf.keras.layers.Dense(units=hp_units, activation='relu'))
+  model.add(tf.keras.layers.Dense(3))
+
+  # Tune the learning rate for the optimizer
+  # Choose an optimal value from 0.01, 0.001, or 0.0001
+  hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+
+  model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=hp_learning_rate),
+                loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                metrics=['accuracy'])
+
+  return model
+
+
+def training2():
+  # 导入数据集
+  image_label_ds, image_count = load_datasheet('./train')
+
+  # 设置一个和数据集大小一致的 shuffle buffer size（随机缓冲区大小）以保证数据
+  # 被充分打乱。
+  ds = image_label_ds.shuffle(buffer_size=5000)
+  ds = ds.repeat(2)
+  ds = ds.batch(BATCH_SIZE)
+  # 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
+  ds = ds.prefetch(buffer_size=AUTOTUNE)
+
+
+  # 要完成本教程，请在测试数据上评估超模型。
+  # 导入数据集
+  test_ds, test_count = load_datasheet('./test')
+
+  test_ds = test_ds.batch(BATCH_SIZE)
+  # 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
+  test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
+
+
+  # 实例化调节器并执行超调
+  mobile_net = tf.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
+  # 设置 MobileNet 的权重为不可训练
+  mobile_net.trainable=False
+
+  # 在将输出传递给 MobilNet 模型之前，需要将其范围从 [0,1] 转化为 [-1,1]：
+  def change_range(image,label):
+    return 2*image-1, label
+
+  keras_ds = ds.map(change_range)
+
+  # 数据集可能需要几秒来启动，因为要填满其随机缓冲区。
+  image_batch, label_batch = next(iter(keras_ds))
+
+  feature_map_batch = mobile_net(image_batch)
+  print(feature_map_batch.shape)
+
+  # 实例化调节器并执行超调
+  # 要实例化 Hyperband 调节器，必须指定超模型、要优化的 objective 和要训练的最大周期数 (max_epochs)。
+  tuner = kt.Hyperband(model_builder,
+                     objective='val_accuracy',
+                     max_epochs=10,
+                     factor=3,
+                     directory='my_dir',
+                     project_name='intro_to_kt')
+  # 创建回调以在验证损失达到特定值后提前停止训练。
+  stop_early = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5)
+  # 运行超参数搜索。除了上面的回调外，搜索方法的参数也与 tf.keras.model.fit
+  # https://stackoverflow.com/questions/63166479/valueerror-validation-split-is-only-supported-for-tensors-or-numpy-arrays-fo
+  tuner.search(ds, epochs=50, validation_data=test_ds, callbacks=[stop_early])
+
+  # Get the optimal hyperparameters
+  best_hps=tuner.get_best_hyperparameters(num_trials=1)[0]
+
+  print(f"""
+  The hyperparameter search is complete. The optimal number of units in the first densely-connected
+  layer is {best_hps.get('units')} and the optimal learning rate for the optimizer
+  is {best_hps.get('learning_rate')}.
+  """)
+
+  # 训练模型
+  # 使用从搜索中获得的超参数找到训练模型的最佳周期数。
+  # Build the model with the optimal hyperparameters and train it on the data for 50 epochs
+  model = tuner.hypermodel.build(best_hps)
+  history = model.fit(ds, epochs=50, validation_split=0.2)
+
+  val_acc_per_epoch = history.history['val_accuracy']
+  best_epoch = val_acc_per_epoch.index(max(val_acc_per_epoch)) + 1
+  print('Best epoch: %d' % (best_epoch,))
+
+  # 重新实例化超模型并使用上面的最佳周期数对其进行训练。
+  hypermodel = tuner.hypermodel.build(best_hps)
+
+  # Retrain the model
+  hypermodel.fit(ds, epochs=best_epoch, validation_split=0.2)
+
+
+  # 评估准确率
+  test_loss, test_acc = hypermodel.evaluate(test_ds, verbose=2)
+  print('\nTest accuracy:', test_acc)
+
+
+  # 保存模型
+  pathlib.Path('saved_model').mkdir()
+  hypermodel.save('saved_model/my_model')
+
+
 class_names = sorted(item.name for item in pathlib.Path('./test').glob('*/') if item.is_dir())
 CLASS_NUM = len(class_names)
 
@@ -238,4 +350,4 @@ def prob():
 
 
 if __name__ == "__main__":
-  training()
+  training2()
