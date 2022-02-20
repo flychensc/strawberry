@@ -97,20 +97,36 @@ def training():
 
   keras_ds = ds.map(change_range)
 
-  # # 数据集可能需要几秒来启动，因为要填满其随机缓冲区。
+  # 数据集可能需要几秒来启动，因为要填满其随机缓冲区。
+  image_batch, label_batch = next(iter(keras_ds))
+
+  feature_map_batch = mobile_net(image_batch)
+  print(feature_map_batch.shape)
+
   model = tf.keras.Sequential([
     mobile_net,
     tf.keras.layers.GlobalAveragePooling2D(),
     # len(label_names)
     tf.keras.layers.Dense(3, activation = 'softmax')])
 
+  # 现在它产出符合预期 shape(维数)的输出：
+  logit_batch = model(image_batch).numpy()
+
+  print("min logit:", logit_batch.min())
+  print("max logit:", logit_batch.max())
+  print()
+
+  print("Shape:", logit_batch.shape)
+
   # 编译模型
   model.compile(optimizer=tf.keras.optimizers.Adam(),
                 loss='sparse_categorical_crossentropy',
                 metrics=["accuracy"])
-
+  len(model.trainable_variables)
+  model.summary()
 
   steps_per_epoch=tf.math.ceil(image_count/BATCH_SIZE).numpy()
+  steps_per_epoch
 
   # 训练模型
   # 向模型馈送数据
@@ -172,6 +188,7 @@ def plot_value_array(i, predictions_array, true_label):
 def prob():
   # 从保存的模型重新加载一个新的 Keras 模型
   model = tf.keras.models.load_model('saved_model/my_model')
+  model.summary()
 
   # 导入数据集
   test_ds, test_count = load_datasheet('./test')
