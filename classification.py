@@ -19,6 +19,10 @@ BATCH_SIZE = 32
 # 192: 0.513; 224: 0.531
 IMAGE_SIZE = 224
 
+MIN_DENSE_UNITS = 32
+# 512: OOM
+MAX_DENSE_UNITS = 256
+STEP_DENSE_UNITS = 32
 
 # 加载和格式化图片
 def preprocess_image(image):
@@ -153,14 +157,21 @@ def training():
 
 # 定义模型
 def model_builder(hp):
-  model = tf.keras.Sequential()
-  model.add(tf.keras.layers.Flatten(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3)))
+  # 构建模型
+  mobile_net = tf.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
+  # 设置 MobileNet 的权重为不可训练
+  mobile_net.trainable=False
+
+  model = tf.keras.Sequential([
+    mobile_net,
+    tf.keras.layers.GlobalAveragePooling2D()])
 
   # Tune the number of units in the first Dense layer
   # Choose an optimal value between 32-512
-  hp_units = hp.Int('units', min_value=32, max_value=512, step=32)
+  hp_units = hp.Int('units', min_value=MIN_DENSE_UNITS, max_value=MAX_DENSE_UNITS, step=STEP_DENSE_UNITS)
   model.add(tf.keras.layers.Dense(units=hp_units, activation='relu'))
-  model.add(tf.keras.layers.Dense(3))
+  # len(label_names)
+  model.add(tf.keras.layers.Dense(3, activation = 'softmax'))
 
   # Tune the learning rate for the optimizer
   # Choose an optimal value from 0.01, 0.001, or 0.0001
@@ -195,22 +206,11 @@ def training2():
   test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
 
 
-  # 实例化调节器并执行超调
-  mobile_net = tf.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
-  # 设置 MobileNet 的权重为不可训练
-  mobile_net.trainable=False
-
   # 在将输出传递给 MobilNet 模型之前，需要将其范围从 [0,1] 转化为 [-1,1]：
   def change_range(image,label):
     return 2*image-1, label
 
-  keras_ds = ds.map(change_range)
-
-  # 数据集可能需要几秒来启动，因为要填满其随机缓冲区。
-  image_batch, label_batch = next(iter(keras_ds))
-
-  feature_map_batch = mobile_net(image_batch)
-  print(feature_map_batch.shape)
+  ds = ds.map(change_range)
 
   # 实例化调节器并执行超调
   # 要实例化 Hyperband 调节器，必须指定超模型、要优化的 objective 和要训练的最大周期数 (max_epochs)。
