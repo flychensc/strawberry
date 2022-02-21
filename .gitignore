@@ -135,3 +135,4 @@ config.ini
 *.csv
 *.jpg
 saved_model/
+my_dir/

@@ -350,4 +350,4 @@ def prob():
 
 
 if __name__ == "__main__":
-  training2()
+  training()
