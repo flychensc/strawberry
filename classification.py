@@ -91,6 +91,14 @@ def training():
   ds = ds.prefetch(buffer_size=AUTOTUNE)
 
 
+  # 导入数据集
+  test_ds, test_count = load_datasheet('./test')
+
+  test_ds = test_ds.batch(BATCH_SIZE)
+  # 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
+  test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
+
+
   # 构建模型
   mobile_net = tf.keras.applications.MobileNetV2(input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3), include_top=False)
   # 设置 MobileNet 的权重为不可训练
@@ -135,15 +143,8 @@ def training():
 
   # 训练模型
   # 向模型馈送数据
-  model.fit(ds, epochs=10, steps_per_epoch=steps_per_epoch)
+  model.fit(ds, epochs=26, steps_per_epoch=steps_per_epoch, validation_data=test_ds)
 
-
-  # 导入数据集
-  test_ds, test_count = load_datasheet('./test')
-
-  test_ds = test_ds.batch(BATCH_SIZE)
-  # 当模型在训练的时候，`prefetch` 使数据集在后台取得 batch。
-  test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
 
   # 评估准确率
   test_loss, test_acc = model.evaluate(test_ds, verbose=2)
