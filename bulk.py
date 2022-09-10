@@ -22,7 +22,7 @@ def gen_kline(context, data, fpath, mav):
 def init(context):
     print(dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "START")
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read('../cranberry/preparing/config.ini')
 
     context.PERIOD = config.getint('CANDLE', 'PERIOD')
     context.FREQUENCY = '1d'

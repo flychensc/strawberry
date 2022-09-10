@@ -8,7 +8,7 @@ import configparser
 
 
 cfg = configparser.ConfigParser()
-cfg.read('config.ini')
+cfg.read('../cranberry/preparing/config.ini')
 
 config = {
   "base": {
