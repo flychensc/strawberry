@@ -143,7 +143,7 @@ def training():
 
   # 训练模型
   # 向模型馈送数据
-  model.fit(ds, epochs=26, steps_per_epoch=steps_per_epoch, validation_data=test_ds)
+  model.fit(ds, epochs=10, steps_per_epoch=steps_per_epoch, validation_data=test_ds)
 
 
   # 评估准确率
