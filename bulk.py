@@ -43,24 +43,6 @@ def init(context):
     if 'k' not in context.classifying.columns:
         context.classifying.rename(columns={'profit':'k'}, inplace=True)
 
-    # 提高准确率
-    if 'k' in context.classifying.columns:
-        for sub in sub_dirs:
-            temp = context.classifying[context.classifying['classify'] == sub]
-            max_num = config.getint('BULK', 'NUMBER')
-            if temp.shape[0] > max_num:
-                if temp['k'].min() > 0:
-                    # 1,2,3...
-                    context.classifying.drop(temp['k'].sort_values()[:-max_num].index, inplace=True)
-                elif temp['k'].max() < 0:
-                    # -1,-2,-3...
-                    context.classifying.drop(temp['k'].sort_values(ascending=False)[:-max_num].index, inplace=True)
-                elif temp['k'].min() < 0 and temp['k'].max() > 0:
-                    # 3,-3,2,-2,-1,1...
-                    context.classifying.drop(temp['k'].sort_values(ascending=False, key=np.abs)[:-max_num].index, inplace=True)
-                else:
-                    context.classifying.drop(shuffle(temp).sample(temp.shape[0]-max_num).index, inplace=True)
-
     # 保留需要的列
     context.classifying = context.classifying[['order_day', 'order_book_id', 'classify']]
 
