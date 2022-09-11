@@ -120,7 +120,7 @@ def training():
     mobile_net,
     tf.keras.layers.GlobalAveragePooling2D(),
     # len(label_names)
-    tf.keras.layers.Dense(3, activation = 'softmax')])
+    tf.keras.layers.Dense(2, activation = 'softmax')])
 
   # 现在它产出符合预期 shape(维数)的输出：
   logit_batch = model(image_batch).numpy()
@@ -172,7 +172,7 @@ def model_builder(hp):
   hp_units = hp.Int('units', min_value=MIN_DENSE_UNITS, max_value=MAX_DENSE_UNITS, step=STEP_DENSE_UNITS)
   model.add(tf.keras.layers.Dense(units=hp_units, activation='relu'))
   # len(label_names)
-  model.add(tf.keras.layers.Dense(3, activation = 'softmax'))
+  model.add(tf.keras.layers.Dense(2, activation = 'softmax'))
 
   # Tune the learning rate for the optimizer
   # Choose an optimal value from 0.01, 0.001, or 0.0001
